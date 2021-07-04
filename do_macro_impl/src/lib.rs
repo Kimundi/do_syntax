@@ -31,7 +31,10 @@ struct State {}
 impl State {
     fn replace_expr(&mut self, i: Expr) -> Expr {
         if let Expr::Macro(i) = &i {
+            println!("--------");
             println!("{}", i.to_token_stream());
+            println!("--------");
+            println!();
             if i.mac.path.is_ident("do_") {
                 return Expr::Verbatim(quote! {
                     42
