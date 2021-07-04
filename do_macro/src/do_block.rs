@@ -29,10 +29,13 @@ impl crate::State {
     fn parse_macro(&mut self, tokens: TokenStream1) -> TokenStream1 {
         let input = syn::parse_macro_input!(tokens as DoMacro);
 
-        self.compute_enum(self.function_name.clone());
+        let enum_def = self
+            .compute_enum(self.function_name.clone())
+            .make_jump_target_enum();
 
         let expr = input.block;
         let expanded = quote! {
+            #enum_def
             #expr
         };
 
@@ -100,13 +103,11 @@ impl crate::State {
             targets.push(target);
         }
 
-        let ret = JumpEnum {
+        JumpEnum {
             targets,
             type_count: id,
             function_name,
-        };
-        ret.debug();
-        ret
+        }
     }
 }
 
@@ -140,43 +141,77 @@ impl JumpEnum {
             function_name,
         }
     }
-    fn debug(&self) {
+    fn make_jump_target_enum(&self) -> TokenStream {
         println!("{:#?}", self.targets);
-        let mut ss = Vec::new();
+
+        let mut type_args = Vec::new();
+        for i in 0..self.type_count {
+            type_args.push(format_ident!("T_{}", i));
+        }
+        println!("{:#?}", type_args);
+
+        let mut variants = Vec::new();
         for target in &self.targets {
             let s = match target {
-                DispatchTargets::Return(id) => format!("Return(T_{})", id),
-                DispatchTargets::Break(_id) => format!("Break"),
-                DispatchTargets::BreakValue(id) => format!("BreakValue(T_{})", id),
-                DispatchTargets::BreakLabel(_id, l) => format!("Break_{}", l.ident),
+                DispatchTargets::Return(id) => {
+                    let variant = format_ident!("Return");
+                    let ty = &type_args[*id];
+                    quote! {
+                        #variant(#ty)
+                    }
+                }
+                DispatchTargets::Break(_id) => {
+                    let variant = format_ident!("Break");
+                    quote! {
+                        #variant
+                    }
+                }
+                DispatchTargets::BreakValue(id) => {
+                    let variant = format_ident!("BreakValue");
+                    let ty = &type_args[*id];
+                    quote! {
+                        #variant(#ty)
+                    }
+                }
+                DispatchTargets::BreakLabel(_id, l) => {
+                    let variant = format_ident!("Break_{}", l.ident);
+                    quote! {
+                        #variant
+                    }
+                }
                 DispatchTargets::BreakValueLabel(id, l) => {
-                    format!("BreakValue_{}(T_{})", l.ident, id)
+                    let variant = format_ident!("BreakValue_{}", l.ident);
+                    let ty = &type_args[*id];
+                    quote! {
+                        #variant(#ty)
+                    }
                 }
-                DispatchTargets::Continue(_id) => format!("Continue"),
-                DispatchTargets::ContinueLabel(_id, l) => format!("Continue_{}", l.ident),
-            };
-            ss.push(s);
-        }
-        println!("{:#?}", ss);
-        let mut ss2 = Vec::new();
-        for target in &self.targets {
-            let s = match target {
-                DispatchTargets::Return(id) => (format_ident!("Return"), *id),
-                DispatchTargets::Break(id) => (format_ident!("Break"), *id),
-                DispatchTargets::BreakValue(id) => (format_ident!("BreakValue"), *id),
-                DispatchTargets::BreakLabel(id, l) => (format_ident!("Break_{}", l.ident), *id),
-                DispatchTargets::BreakValueLabel(id, l) => {
-                    (format_ident!("BreakValue_{}", l.ident), *id)
+                DispatchTargets::Continue(_id) => {
+                    let variant = format_ident!("Continue");
+                    quote! {
+                        #variant
+                    }
                 }
-                DispatchTargets::Continue(id) => (format_ident!("Continue"), *id),
-                DispatchTargets::ContinueLabel(id, l) => {
-                    (format_ident!("Continue_{}", l.ident), *id)
+                DispatchTargets::ContinueLabel(_id, l) => {
+                    let variant = format_ident!("Continue_{}", l.ident);
+                    quote! {
+                        #variant
+                    }
                 }
             };
-            ss2.push(s);
+            variants.push(s);
         }
-        println!("{:#?}", ss2);
+        println!("{:#?}", variants);
+
         let enum_name = format_ident!("JumpTarget_{}", self.function_name);
         println!("{:?}", enum_name);
+
+        let enum_def = quote! {
+            enum #enum_name<#(#type_args),*> {
+                #(#variants,)*
+            }
+        };
+        println!("{:#?}", enum_def);
+        enum_def
     }
 }
