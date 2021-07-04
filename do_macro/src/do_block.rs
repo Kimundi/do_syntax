@@ -1,8 +1,6 @@
-use std::collections::BTreeSet;
-
 use proc_macro::TokenStream as TokenStream1;
 use proc_macro2::TokenStream;
-use quote::{format_ident, quote, ToTokens};
+use quote::{format_ident, quote};
 use syn::{Ident, Lifetime};
 
 use crate::StackEntry;
@@ -207,6 +205,7 @@ impl JumpEnum {
         println!("{:?}", enum_name);
 
         let enum_def = quote! {
+            #[allow(non_camel_case_types)]
             enum #enum_name<#(#type_args),*> {
                 #(#variants,)*
             }

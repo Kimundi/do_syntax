@@ -1,8 +1,7 @@
 use crate::StackEntry;
 use crate::State;
 use proc_macro::TokenStream as TokenStream1;
-use proc_macro2::TokenStream;
-use quote::{quote, ToTokens};
+use quote::ToTokens;
 use syn;
 use syn::fold::{self, Fold};
 use syn::Expr;
@@ -48,7 +47,7 @@ impl Fold for State {
         match &i {
             // reset of stack
             // TODO: ItemFN, ItemMethod
-            Expr::Closure(i) => {
+            Expr::Closure(_i) => {
                 /*
                     self.stack.push(format!("Closure"));
                     pushed = true;
@@ -56,19 +55,19 @@ impl Fold for State {
             }
 
             // jumps
-            Expr::Break(i) => {
+            Expr::Break(_i) => {
                 /*
                     self.stack.push(format!("Break"));
                     pushed = true;
                 */
             }
-            Expr::Continue(i) => {
+            Expr::Continue(_i) => {
                 /*
                     self.stack.push(format!("Continue"));
                     pushed = true;
                 */
             }
-            Expr::Return(i) => {
+            Expr::Return(_i) => {
                 /*
                     self.stack.push(format!("Return"));
                     pushed = true;
