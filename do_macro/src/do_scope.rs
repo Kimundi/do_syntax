@@ -1,3 +1,5 @@
+use crate::StackEntry;
+use crate::State;
 use proc_macro::TokenStream as TokenStream1;
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
@@ -25,68 +27,14 @@ impl syn::parse::Parse for Function {
     }
 }
 
-#[derive(Debug)]
-struct DoMacro {
-    func: syn::ExprCall,
-    block: syn::ExprBlock,
-}
-
-impl syn::parse::Parse for DoMacro {
-    fn parse(input: syn::parse::ParseStream) -> syn::parse::Result<Self> {
-        println!("{:?}", &input);
-        let r = DoMacro {
-            func: input.parse()?,
-            block: input.parse()?,
-        };
-        println!("{:?}", &r);
-        Ok(r)
-    }
-}
-
-struct State {
-    stack: Vec<StackEntry>,
-}
-
-enum StackEntry {
-    Function,
-    JumpTarget { label: Option<syn::Lifetime> },
-}
-
-impl std::fmt::Debug for StackEntry {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
-        match self {
-            StackEntry::Function => write!(f, "function"),
-            StackEntry::JumpTarget { label } => write!(f, "loop {:?}", label),
-        }
-    }
-}
-
 impl State {
-    fn new() -> Self {
-        Self {
-            stack: vec![StackEntry::Function],
-        }
-    }
-
-    fn parse_macro(&mut self, tokens: TokenStream1) -> TokenStream1 {
-        let input = syn::parse_macro_input!(tokens as DoMacro);
-
-        let expr = input.block;
-        let expanded = quote! {
-            #expr
-        };
-
-        TokenStream1::from(expanded)
-    }
-
     fn replace_expr(&mut self, i: Expr) -> Expr {
         if let Expr::Macro(i) = &i {
             println!("{:#?}", self.stack);
             println!("{}", i.to_token_stream());
             println!();
             if i.mac.path.is_ident("do_") {
-                let transformed = self.parse_macro(i.mac.tokens.clone().into());
-                return Expr::Verbatim(transformed.into());
+                return Expr::Verbatim(self.replace_macro(i.mac.tokens.clone()));
             }
         }
         i
