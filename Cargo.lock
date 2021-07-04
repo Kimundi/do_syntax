@@ -6,12 +6,20 @@ version = 3
 name = "do_macro"
 version = "0.1.0"
 dependencies = [
+ "do_macro_impl",
+]
+
+[[package]]
+name = "do_macro_impl"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
  "quote",
  "syn",
 ]
 
 [[package]]
-name = "do_revive"
+name = "do_usage"
 version = "0.1.0"
 dependencies = [
  "do_macro",

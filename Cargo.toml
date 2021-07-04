@@ -1,14 +1,2 @@
-[package]
-name = "do_revive"
-version = "0.1.0"
-edition = "2018"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
-[dependencies]
-do_macro = { path = "./do_macro" }
-
 [workspace]
-members = [
-    "do_macro"
-]
+members = ["do_usage", "do_macro", "do_macro_impl"]
