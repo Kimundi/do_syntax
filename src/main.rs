@@ -10,7 +10,9 @@ macro_rules! do_block {
 #[do_scope]
 fn main() {
     loop {
+        /*
         let tmp = foo(
+            42,
             do_block!(do {
                 if true {
                     return ControlFlow::Break(MainJumpTargets::Return);
@@ -22,9 +24,6 @@ fn main() {
                     return ControlFlow::Break(MainJumpTargets::Continue);
                 }
             }),
-            do_block!(do {
-
-            }),
         );
         if let ControlFlow::Break(dst) = tmp {
             match dst {
@@ -32,7 +31,19 @@ fn main() {
                 MainJumpTargets::Break => break,
                 MainJumpTargets::Continue => continue,
             }
-        }
+        }*/
+
+        do_!(foo(42) {
+            if true {
+                return;
+            }
+            if true {
+                break;
+            }
+            if true {
+                continue;
+            }
+        });
     }
 }
 
@@ -42,10 +53,6 @@ enum MainJumpTargets {
     Continue,
 }
 
-fn foo<B>(
-    mut f: impl FnMut() -> ControlFlow<B>,
-    mut g: impl FnMut() -> ControlFlow<B>,
-) -> ControlFlow<B> {
-    f()?;
-    g()
+fn foo<B>(_arg: i32, mut f: impl FnMut() -> ControlFlow<B>) -> ControlFlow<B> {
+    f()
 }
