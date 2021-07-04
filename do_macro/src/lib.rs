@@ -5,5 +5,8 @@ mod do_scope;
 
 #[proc_macro_attribute]
 pub fn do_scope(_attr: TokenStream, tokens: TokenStream) -> TokenStream {
-    do_scope::do_scope_impl(tokens)
+    println!("/*");
+    let ret = do_scope::do_scope_impl(tokens);
+    println!("*/");
+    ret
 }

@@ -81,10 +81,8 @@ impl State {
 
     fn replace_expr(&mut self, i: Expr) -> Expr {
         if let Expr::Macro(i) = &i {
-            println!("/*");
             println!("{:#?}", self.stack);
             println!("{}", i.to_token_stream());
-            println!("*/");
             println!();
             if i.mac.path.is_ident("do_") {
                 let transformed = self.parse_macro(i.mac.tokens.clone().into());
