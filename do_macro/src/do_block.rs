@@ -1,3 +1,5 @@
+use std::collections::BTreeSet;
+
 use proc_macro::TokenStream as TokenStream1;
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
@@ -147,6 +149,7 @@ impl JumpEnum {
             type_args.push(format_ident!("T_{}", i));
         }
         // println!("{:#?}", type_args);
+        let mut used_type_args = BTreeSet::new();
 
         let mut variants = Vec::new();
         for target in &self.targets {
@@ -154,6 +157,7 @@ impl JumpEnum {
                 DispatchTargets::Return(id) => {
                     let variant = format_ident!("Return");
                     let ty = &type_args[*id];
+                    used_type_args.insert(ty);
                     quote! {
                         #variant(#ty)
                     }
@@ -167,6 +171,7 @@ impl JumpEnum {
                 DispatchTargets::BreakValue(id) => {
                     let variant = format_ident!("BreakValue");
                     let ty = &type_args[*id];
+                    used_type_args.insert(ty);
                     quote! {
                         #variant(#ty)
                     }
@@ -180,6 +185,7 @@ impl JumpEnum {
                 DispatchTargets::BreakValueLabel(id, l) => {
                     let variant = format_ident!("BreakValue_{}", l.ident);
                     let ty = &type_args[*id];
+                    used_type_args.insert(ty);
                     quote! {
                         #variant(#ty)
                     }
@@ -206,7 +212,7 @@ impl JumpEnum {
 
         let enum_def = quote! {
             #[allow(non_camel_case_types)]
-            enum #enum_name<#(#type_args),*> {
+            enum #enum_name<#(#used_type_args),*> {
                 #(#variants,)*
             }
         };

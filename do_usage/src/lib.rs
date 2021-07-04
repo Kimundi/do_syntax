@@ -3,7 +3,7 @@ use std::ops::ControlFlow;
 
 #[do_scope]
 pub fn test1(v: i32) {
-    'outer: loop {
+    'outer: for _ in 0..5 {
         'inner: loop {
             do_!(foo(42) {
                 match v {
@@ -12,7 +12,7 @@ pub fn test1(v: i32) {
                     2 => continue,
                     3 => break 'outer,
                     4 => continue 'outer,
-                    5 => break 'inner,
+                    5 => break 'inner (),
                     6 => continue 'inner,
                     _ => {}
                 }
