@@ -14,26 +14,22 @@ pub fn do_scope(_attr: TokenStream, tokens: TokenStream) -> TokenStream {
 
 struct State {
     stack: Vec<StackEntry>,
+    function_name: syn::Ident,
 }
 
 impl State {
-    fn new() -> Self {
+    fn new(function_name: syn::Ident) -> Self {
         Self {
             stack: vec![StackEntry::Function],
+            function_name,
         }
     }
 }
 
+#[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Clone)]
 enum StackEntry {
     Function,
-    JumpTarget { label: Option<syn::Lifetime> },
-}
-
-impl std::fmt::Debug for StackEntry {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
-        match self {
-            StackEntry::Function => write!(f, "function"),
-            StackEntry::JumpTarget { label } => write!(f, "loop {:?}", label),
-        }
-    }
+    Block { label: Option<syn::Lifetime> },
+    ForOrWhile { label: Option<syn::Lifetime> },
+    Loop { label: Option<syn::Lifetime> },
 }

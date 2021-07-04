@@ -10,8 +10,9 @@ use syn::ItemFn;
 
 pub fn do_scope_impl(tokens: TokenStream1) -> TokenStream1 {
     let input = syn::parse_macro_input!(tokens as Function);
+    let function_name = input.item.sig.ident.clone();
 
-    let new_item = State::new().fold_item_fn(input.item);
+    let new_item = State::new(function_name).fold_item_fn(input.item);
     new_item.to_token_stream().into()
 }
 
@@ -76,25 +77,25 @@ impl Fold for State {
 
             // jump targets
             Expr::Block(i) => {
-                self.stack.push(StackEntry::JumpTarget {
+                self.stack.push(StackEntry::Block {
                     label: i.label.as_ref().map(|v| v.name.clone()),
                 });
                 pushed = true;
             }
             Expr::ForLoop(i) => {
-                self.stack.push(StackEntry::JumpTarget {
+                self.stack.push(StackEntry::ForOrWhile {
                     label: i.label.as_ref().map(|v| v.name.clone()),
                 });
                 pushed = true;
             }
             Expr::Loop(i) => {
-                self.stack.push(StackEntry::JumpTarget {
+                self.stack.push(StackEntry::Loop {
                     label: i.label.as_ref().map(|v| v.name.clone()),
                 });
                 pushed = true;
             }
             Expr::While(i) => {
-                self.stack.push(StackEntry::JumpTarget {
+                self.stack.push(StackEntry::ForOrWhile {
                     label: i.label.as_ref().map(|v| v.name.clone()),
                 });
                 pushed = true;
