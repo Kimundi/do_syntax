@@ -30,9 +30,9 @@ impl syn::parse::Parse for Function {
 impl State {
     fn replace_expr(&mut self, i: Expr) -> Expr {
         if let Expr::Macro(i) = &i {
-            println!("{:#?}", self.stack);
-            println!("{}", i.to_token_stream());
-            println!();
+            // println!("{:#?}", self.stack);
+            // println!("{}", i.to_token_stream());
+            // println!();
             if i.mac.path.is_ident("do_") {
                 return Expr::Verbatim(self.replace_macro(i.mac.tokens.clone()));
             }

@@ -13,12 +13,12 @@ struct DoMacro {
 
 impl syn::parse::Parse for DoMacro {
     fn parse(input: syn::parse::ParseStream) -> syn::parse::Result<Self> {
-        println!("{:?}", &input);
+        // println!("{:?}", &input);
         let r = DoMacro {
             func: input.parse()?,
             block: input.parse()?,
         };
-        println!("{:?}", &r);
+        // println!("{:?}", &r);
         Ok(r)
     }
 }
@@ -54,7 +54,7 @@ impl crate::State {
         };
 
         let stack = &self.stack[pos..];
-        println!("{:#?}", stack);
+        // println!("{:#?}", stack);
 
         let mut targets = Vec::new();
         let mut last_break = None;
@@ -140,13 +140,13 @@ impl JumpEnum {
         }
     }
     fn make_jump_target_enum(&self) -> TokenStream {
-        println!("{:#?}", self.targets);
+        // println!("{:#?}", self.targets);
 
         let mut type_args = Vec::new();
         for i in 0..self.type_count {
             type_args.push(format_ident!("T_{}", i));
         }
-        println!("{:#?}", type_args);
+        // println!("{:#?}", type_args);
 
         let mut variants = Vec::new();
         for target in &self.targets {
@@ -199,10 +199,10 @@ impl JumpEnum {
             };
             variants.push(s);
         }
-        println!("{:#?}", variants);
+        // println!("{:#?}", variants);
 
         let enum_name = format_ident!("JumpTarget_{}", self.function_name);
-        println!("{:?}", enum_name);
+        // println!("{:?}", enum_name);
 
         let enum_def = quote! {
             #[allow(non_camel_case_types)]
@@ -210,7 +210,7 @@ impl JumpEnum {
                 #(#variants,)*
             }
         };
-        println!("{:#?}", enum_def);
+        // println!("{:#?}", enum_def);
         enum_def
     }
 }
