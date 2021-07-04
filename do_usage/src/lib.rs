@@ -12,8 +12,10 @@ pub fn test1(v: i32) {
                     2 => continue,
                     3 => break 'outer,
                     4 => continue 'outer,
-                    5 => break 'inner (),
+                    5 => break 'inner,
                     6 => continue 'inner,
+                    7 => break (),
+                    8 => break 'inner (),
                     _ => {}
                 }
             });

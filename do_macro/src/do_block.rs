@@ -29,9 +29,13 @@ impl crate::State {
     fn parse_macro(&mut self, tokens: TokenStream1) -> TokenStream1 {
         let input = syn::parse_macro_input!(tokens as DoMacro);
 
-        let enum_def = self
+        let final_jump_target = self
             .compute_enum(self.function_name.clone())
             .make_jump_target_enum();
+
+        println!("{:#?}", final_jump_target);
+
+        let enum_def = final_jump_target.tokens;
 
         let expr = input.block;
         let expanded = quote! {
@@ -59,8 +63,8 @@ impl crate::State {
         // println!("{:#?}", stack);
 
         let mut targets = Vec::new();
-        let mut last_break = None;
-        let mut last_continue = None;
+        let mut bare_break = None;
+        let mut bare_continue = None;
         let mut id = 0;
         for e in stack.iter() {
             match e {
@@ -68,8 +72,8 @@ impl crate::State {
                     targets.push(DispatchTargets::Return(id));
                 }
                 StackEntry::Loop { label } => {
-                    last_break = Some(DispatchTargets::BreakValue(id));
-                    last_continue = Some(DispatchTargets::Continue(id));
+                    bare_break = Some(DispatchTargets::BreakValue(id));
+                    bare_continue = Some(DispatchTargets::Continue(id));
                     if let Some(label) = label {
                         targets.extend([
                             DispatchTargets::BreakValueLabel(id, label.clone()),
@@ -78,8 +82,8 @@ impl crate::State {
                     }
                 }
                 StackEntry::ForOrWhile { label } => {
-                    last_break = Some(DispatchTargets::Break(id));
-                    last_continue = Some(DispatchTargets::Continue(id));
+                    bare_break = Some(DispatchTargets::Break(id));
+                    bare_continue = Some(DispatchTargets::Continue(id));
                     if let Some(label) = label {
                         targets.extend([
                             DispatchTargets::BreakLabel(id, label.clone()),
@@ -96,15 +100,17 @@ impl crate::State {
             id += 1;
         }
 
-        if let Some(target) = last_break {
+        if let Some(target) = bare_break.clone() {
             targets.push(target);
         }
-        if let Some(target) = last_continue {
+        if let Some(target) = bare_continue.clone() {
             targets.push(target);
         }
 
         JumpEnum {
             targets,
+            bare_break,
+            bare_continue,
             type_count: id,
             function_name,
         }
@@ -127,8 +133,24 @@ enum DispatchTargets {
     ContinueLabel(TypeId, Lifetime),
 }
 
+impl DispatchTargets {
+    fn value_arg(&self) -> ValueArg {
+        match self {
+            DispatchTargets::Return(_) => ValueArg::Value,
+            DispatchTargets::Break(_) => ValueArg::NoValue,
+            DispatchTargets::BreakLabel(_, _) => ValueArg::NoValue,
+            DispatchTargets::BreakValue(_) => ValueArg::Value,
+            DispatchTargets::BreakValueLabel(_, _) => ValueArg::Value,
+            DispatchTargets::Continue(_) => ValueArg::NoValue,
+            DispatchTargets::ContinueLabel(_, _) => ValueArg::NoValue,
+        }
+    }
+}
+
 struct JumpEnum {
     targets: Vec<DispatchTargets>,
+    bare_break: Option<DispatchTargets>,
+    bare_continue: Option<DispatchTargets>,
     type_count: usize,
     function_name: Ident,
 }
@@ -137,11 +159,13 @@ impl JumpEnum {
     fn new(function_name: Ident) -> Self {
         Self {
             targets: Vec::new(),
+            bare_break: None,
+            bare_continue: None,
             type_count: 0,
             function_name,
         }
     }
-    fn make_jump_target_enum(&self) -> TokenStream {
+    fn make_jump_target_enum(self) -> FinalJumpTarget {
         // println!("{:#?}", self.targets);
 
         let mut type_args = Vec::new();
@@ -153,57 +177,7 @@ impl JumpEnum {
 
         let mut variants = Vec::new();
         for target in &self.targets {
-            let s = match target {
-                DispatchTargets::Return(id) => {
-                    let variant = format_ident!("Return");
-                    let ty = &type_args[*id];
-                    used_type_args.insert(ty);
-                    quote! {
-                        #variant(#ty)
-                    }
-                }
-                DispatchTargets::Break(_id) => {
-                    let variant = format_ident!("Break");
-                    quote! {
-                        #variant
-                    }
-                }
-                DispatchTargets::BreakValue(id) => {
-                    let variant = format_ident!("BreakValue");
-                    let ty = &type_args[*id];
-                    used_type_args.insert(ty);
-                    quote! {
-                        #variant(#ty)
-                    }
-                }
-                DispatchTargets::BreakLabel(_id, l) => {
-                    let variant = format_ident!("Break_{}", l.ident);
-                    quote! {
-                        #variant
-                    }
-                }
-                DispatchTargets::BreakValueLabel(id, l) => {
-                    let variant = format_ident!("BreakValue_{}", l.ident);
-                    let ty = &type_args[*id];
-                    used_type_args.insert(ty);
-                    quote! {
-                        #variant(#ty)
-                    }
-                }
-                DispatchTargets::Continue(_id) => {
-                    let variant = format_ident!("Continue");
-                    quote! {
-                        #variant
-                    }
-                }
-                DispatchTargets::ContinueLabel(_id, l) => {
-                    let variant = format_ident!("Continue_{}", l.ident);
-                    quote! {
-                        #variant
-                    }
-                }
-            };
-            variants.push(s);
+            variants.push(map_to_variant(target, &type_args, &mut used_type_args));
         }
         // println!("{:#?}", variants);
 
@@ -217,6 +191,83 @@ impl JumpEnum {
             }
         };
         // println!("{:#?}", enum_def);
-        enum_def
+
+        FinalJumpTarget {
+            tokens: enum_def,
+            bare_break: self.bare_break.map_or(ValueArg::NoValue, |v| v.value_arg()),
+            bare_continue: self
+                .bare_continue
+                .map_or(ValueArg::NoValue, |v| v.value_arg()),
+        }
     }
+}
+
+fn map_to_variant<'a>(
+    target: &DispatchTargets,
+    type_args: &'a [Ident],
+    used_type_args: &mut BTreeSet<&'a Ident>,
+) -> TokenStream {
+    match target {
+        DispatchTargets::Return(id) => {
+            let variant = format_ident!("Return");
+            let ty = &type_args[*id];
+            used_type_args.insert(ty);
+            quote! {
+                #variant(#ty)
+            }
+        }
+        DispatchTargets::Break(_id) => {
+            let variant = format_ident!("Break");
+            quote! {
+                #variant
+            }
+        }
+        DispatchTargets::BreakValue(id) => {
+            let variant = format_ident!("BreakValue");
+            let ty = &type_args[*id];
+            used_type_args.insert(ty);
+            quote! {
+                #variant(#ty)
+            }
+        }
+        DispatchTargets::BreakLabel(_id, l) => {
+            let variant = format_ident!("Break_{}", l.ident);
+            quote! {
+                #variant
+            }
+        }
+        DispatchTargets::BreakValueLabel(id, l) => {
+            let variant = format_ident!("BreakValue_{}", l.ident);
+            let ty = &type_args[*id];
+            used_type_args.insert(ty);
+            quote! {
+                #variant(#ty)
+            }
+        }
+        DispatchTargets::Continue(_id) => {
+            let variant = format_ident!("Continue");
+            quote! {
+                #variant
+            }
+        }
+        DispatchTargets::ContinueLabel(_id, l) => {
+            let variant = format_ident!("Continue_{}", l.ident);
+            quote! {
+                #variant
+            }
+        }
+    }
+}
+
+#[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Clone)]
+enum ValueArg {
+    NoValue,
+    Value,
+}
+
+#[derive(Debug, Clone)]
+struct FinalJumpTarget {
+    tokens: TokenStream,
+    bare_break: ValueArg,
+    bare_continue: ValueArg,
 }
