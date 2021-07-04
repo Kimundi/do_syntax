@@ -1,3 +1,4 @@
+use proc_macro::TokenStream as TokenStream1;
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 use syn;
@@ -5,7 +6,7 @@ use syn::fold::{self, Fold};
 use syn::Expr;
 use syn::ItemFn;
 
-pub fn do_scope_impl(tokens: TokenStream) -> TokenStream {
+pub fn do_scope_impl(tokens: TokenStream1) -> TokenStream1 {
     let input = syn::parse_macro_input!(tokens as Function);
 
     let new_item = State::new().fold_item_fn(input.item);
@@ -67,7 +68,7 @@ impl State {
         }
     }
 
-    fn parse_macro(&mut self, tokens: TokenStream) -> TokenStream {
+    fn parse_macro(&mut self, tokens: TokenStream1) -> TokenStream1 {
         let input = syn::parse_macro_input!(tokens as DoMacro);
 
         let expr = input.block;
@@ -75,7 +76,7 @@ impl State {
             #expr
         };
 
-        TokenStream::from(expanded)
+        TokenStream1::from(expanded)
     }
 
     fn replace_expr(&mut self, i: Expr) -> Expr {

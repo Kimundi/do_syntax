@@ -1,2 +1,2 @@
 [workspace]
-members = ["do_macro_impl", "do_usage", "do_macro"]
+members = ["do_usage", "do_macro"]

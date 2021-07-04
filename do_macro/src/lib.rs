@@ -1,8 +1,9 @@
 extern crate proc_macro;
 
 use proc_macro::TokenStream;
+mod do_scope;
 
 #[proc_macro_attribute]
 pub fn do_scope(_attr: TokenStream, tokens: TokenStream) -> TokenStream {
-    do_macro_impl::do_scope_impl(tokens)
+    do_scope::do_scope_impl(tokens)
 }
