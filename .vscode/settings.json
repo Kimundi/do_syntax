@@ -1,4 +1,5 @@
 {
     "rust-analyzer.experimental.procAttrMacros": true,
-    "rust-analyzer.procMacro.enable": true
+    "rust-analyzer.procMacro.enable": true,
+    "rust-analyzer.updates.channel": "nightly"
 }
