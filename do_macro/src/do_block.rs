@@ -3,7 +3,7 @@ use std::collections::BTreeSet;
 use proc_macro::TokenStream as TokenStream1;
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
-use syn::{Ident, Lifetime};
+use syn::{fold::Fold, Expr, Ident, Lifetime};
 
 use crate::StackEntry;
 
@@ -29,15 +29,16 @@ impl crate::State {
     fn parse_macro(&mut self, tokens: TokenStream1) -> TokenStream1 {
         let input = syn::parse_macro_input!(tokens as DoMacro);
 
-        let final_jump_target = self
+        let mut final_jump_target = self
             .compute_enum(self.function_name.clone())
             .make_jump_target_enum();
 
-        println!("{:#?}", final_jump_target);
-
-        let enum_def = final_jump_target.tokens;
+        // println!("{:#?}", final_jump_target);
 
         let expr = input.block;
+        let expr = final_jump_target.fold_expr(Expr::Block(expr));
+        let enum_def = final_jump_target.tokens;
+
         let expanded = quote! {
             #enum_def
             #expr
@@ -195,9 +196,6 @@ impl JumpEnum {
         FinalJumpTarget {
             tokens: enum_def,
             bare_break: self.bare_break.map_or(ValueArg::NoValue, |v| v.value_arg()),
-            bare_continue: self
-                .bare_continue
-                .map_or(ValueArg::NoValue, |v| v.value_arg()),
         }
     }
 }
@@ -269,5 +267,61 @@ enum ValueArg {
 struct FinalJumpTarget {
     tokens: TokenStream,
     bare_break: ValueArg,
-    bare_continue: ValueArg,
+}
+
+fn value_or_unit(expr: Option<&Expr>) -> TokenStream {
+    if let Some(expr) = expr {
+        quote! {
+            #expr
+        }
+    } else {
+        quote! {
+            ()
+        }
+    }
+}
+
+impl Fold for FinalJumpTarget {
+    fn fold_expr(&mut self, i: Expr) -> Expr {
+        let i = syn::fold::fold_expr(self, i);
+        match i {
+            Expr::Return(i) => {
+                let v = value_or_unit(i.expr.as_deref());
+                let i = quote! {
+                    Return(#v)
+                };
+                Expr::Verbatim(i)
+            }
+            Expr::Break(i) => {
+                let v = value_or_unit(i.expr.as_deref());
+                match self.bare_break {
+                    ValueArg::NoValue => (),
+                    ValueArg::Value => (),
+                }
+                let i = if let Some(label) = &i.label {
+                    quote! {
+                        #i
+                    }
+                } else {
+                    quote! {
+                        #i
+                    }
+                };
+                Expr::Verbatim(i)
+            }
+            Expr::Continue(i) => {
+                let i = if let Some(label) = &i.label {
+                    quote! {
+                        #i
+                    }
+                } else {
+                    quote! {
+                        #i
+                    }
+                };
+                Expr::Verbatim(i)
+            }
+            i => i,
+        }
+    }
 }
